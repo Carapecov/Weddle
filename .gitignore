@@ -1,0 +1,63 @@
+# Segredos e configurações locais. Os exemplos seguros permanecem versionáveis.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/auth.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Bancos, dumps e artefatos que podem conter dados locais.
+BlackBoard/*.sqlite3
+BlackBoard/*.sqlite3-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.sql
+*.dump
+*.backup
+
+# Execução local, evidências brutas e ambientes virtuais.
+/.runtime/
+/.venv/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+
+# Dependências, builds, cobertura e caches de ferramentas.
+**/vendor/
+**/node_modules/
+**/public/build/
+**/public/hot
+**/.phpunit.cache/
+**/.phpunit.result.cache
+**/coverage/
+**/.coverage
+**/.cache/
+
+# Sessões, logs e chaves geradas pelo runtime Laravel.
+/src/api/storage/*.key
+/src/api/storage/framework/cache/data/*
+/src/api/storage/framework/sessions/*
+/src/api/storage/framework/views/*
+/src/api/storage/logs/*
+
+# Instruções locais de agentes e IDEs.
+/.agents/
+**/AGENTS.md
+**/CLAUDE.md
+**/.codex/
+**/.cursor/
+**/.idea/
+**/.nova/
+**/.vscode/
+**/.zed/
+
+# Arquivos do sistema operacional.
+.DS_Store
+Thumbs.db
+Desktop.ini

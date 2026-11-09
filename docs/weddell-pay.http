@@ -1,0 +1,60 @@
+# Placeholders: preencha localmente; nunca versione chaves reais.
+@baseUrl = http://127.0.0.1:8000
+@operatorToken = REPLACE_LOCALLY
+@merchantToken = REPLACE_LOCALLY
+@merchantId = REPLACE_WITH_DEMO_MERCHANT_UUID
+@documentId = REPLACE_WITH_DEMO_DOCUMENT_UUID
+@paymentId = REPLACE_WITH_DEMO_PAYMENT_UUID
+
+### Saúde (pública)
+GET {{baseUrl}}/health
+Accept: application/json
+
+### Cadastrar vendedor (somente operador demo)
+POST {{baseUrl}}/api/v1/merchants
+Authorization: Bearer {{operatorToken}}
+Content-Type: application/json
+
+{"name":"DEMO-MERCHANT-001","virtual_account_id":"DEMO-ACCOUNT-001"}
+
+### Documento fiscal fictício
+POST {{baseUrl}}/api/v1/fiscal-documents
+Authorization: Bearer {{merchantToken}}
+Content-Type: application/json
+
+{"merchant_id":"{{merchantId}}","reference":"DEMO-DOC-001","gross_amount_cents":100000,"cbs_amount_cents":8000,"ibs_amount_cents":12000}
+
+### Criar pagamento (mesma chave e mesmo comando reproduzem resposta)
+POST {{baseUrl}}/api/v1/payments
+Authorization: Bearer {{merchantToken}}
+Content-Type: application/json
+Idempotency-Key: demo-create-001
+
+{"merchant_id":"{{merchantId}}","fiscal_document_id":"{{documentId}}","amount_cents":100000,"currency":"BRL","scenario":"approved"}
+
+### Autorizar no gateway simulado; sem corpo
+POST {{baseUrl}}/api/v1/payments/{{paymentId}}/authorize
+Authorization: Bearer {{merchantToken}}
+Idempotency-Key: demo-authorize-001
+
+### Liquidar: R$1000 = R$800 líquido + R$80 CBS + R$120 IBS
+POST {{baseUrl}}/api/v1/payments/{{paymentId}}/settle
+Authorization: Bearer {{merchantToken}}
+Idempotency-Key: demo-settle-001
+
+### Consultar estado atual
+GET {{baseUrl}}/api/v1/payments/{{paymentId}}
+Authorization: Bearer {{merchantToken}}
+
+### Razão
+GET {{baseUrl}}/api/v1/payments/{{paymentId}}/ledger?limit=50
+Authorization: Bearer {{merchantToken}}
+
+### Auditoria
+GET {{baseUrl}}/api/v1/payments/{{paymentId}}/events?limit=50
+Authorization: Bearer {{merchantToken}}
+
+### Estorno integral; preserva as partidas originais
+POST {{baseUrl}}/api/v1/payments/{{paymentId}}/refund
+Authorization: Bearer {{merchantToken}}
+Idempotency-Key: demo-refund-001

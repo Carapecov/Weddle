@@ -1,0 +1,1693 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Weddell Pay — API de simulação de Split Payment",
+    "version": "1.0.0",
+    "description": "Contrato MVP de simulação acadêmica sem movimentação financeira, NF-e real ou recolhimento tributário. CBS/IBS são valores nominais fictícios. Todas as mutações de pagamento exigem Idempotency-Key. Mesma chave+comando retorna status/corpo originais; GET retorna estado atual. Retenção das chaves durante toda a vida do cenário. Corpo JSON máximo 16 KiB; 60 requisições/min por chave e 30 falhas auth/min por IP. Falhas transitórias não reservam resultado final. Logs operacionais sete dias; auditoria/razão permanentes no cenário. Não existem rotas de edição/cancelamento, emissão de credenciais, gateway real ou injeção HTTP de falhas."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Desenvolvimento local; credenciais de demonstração provisionadas por CLI."
+    }
+  ],
+  "tags": [
+    {
+      "name": "Vendedores"
+    },
+    {
+      "name": "Documentos"
+    },
+    {
+      "name": "Pagamentos"
+    },
+    {
+      "name": "Consultas"
+    },
+    {
+      "name": "Operação"
+    }
+  ],
+  "security": [
+    {
+      "BearerDemo": []
+    }
+  ],
+  "paths": {
+    "/api/v1/merchants": {
+      "post": {
+        "operationId": "createMerchant",
+        "tags": [
+          "Vendedores"
+        ],
+        "summary": "Criar vendedor fictício (papel operador)",
+        "description": "Requer credencial de operador de demonstração. Não devolve token. Chave de vendedor é emitida por CLI local. Conta virtual é única. Esta rota não oferece garantia de idempotência por cabeçalho.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vendedor fictício criado; emissão de chave permanece exclusivamente na CLI.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Merchant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/fiscal-documents": {
+      "post": {
+        "operationId": "createFiscalDocument",
+        "tags": [
+          "Documentos"
+        ],
+        "summary": "Criar documento fiscal fictício",
+        "description": "Exige chave do mesmo merchant_id. Bruto positivo e CBS/IBS não negativos; soma CBS+IBS não supera bruto. Referência única global neste cenário. Documento não pode ser editado/cancelado via API. Esta rota não oferece garantia de idempotência por cabeçalho.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiscalDocumentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Documento fictício criado.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "post": {
+        "operationId": "createPayment",
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Criar pagamento simulado idempotente",
+        "description": "Exige documento existente do mesmo vendedor, amount_cents igual ao bruto e BRL. Documentos já liquidados (inclusive estornados) não aceitam novo pagamento; novas tentativas após FAILED são permitidas enquanto não houver liquidação. Scenario é obrigatório e imutável. Nunca aceitar failure_mode pela API.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "CREATED; repetição da mesma chave/comando preserva esta resposta e status mesmo após transições posteriores.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "URI relativa do recurso criado; preservada em replay."
+              },
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "true quando status/corpo vieram do resultado persistido desta chave."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/authorize": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "post": {
+        "operationId": "authorizePayment",
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Autorizar ou recusar pagamento simulado",
+        "description": "Autoriza somente CREATED conforme scenario persistido. approved produz AUTHORIZED; declined produz FAILED/AUTHORIZATION_DECLINED, ambos HTTP 200 e sem partidas. Não enviar corpo (objeto JSON vazio é aceito como comando vazio). Mesma chave/comando reapresenta status/corpo originais. Chave diferente após esta transição concluída ou estado incompatível retorna 409 sem novos efeitos. Operação restrita ao vendedor proprietário.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado persistido da transição; em replay pode representar estado anterior ao estado atual consultável por GET.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              },
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "true quando status/corpo vieram do resultado persistido desta chave."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/settle": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "post": {
+        "operationId": "settlePayment",
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Liquidar e segregar CBS/IBS atomicamente",
+        "description": "Liquida somente AUTHORIZED. Bloqueia documento/pagamento e confirma marca única por documento, evento, partidas, estado e idempotência atomicamente. Falha terminal de teste produz FAILED/SETTLEMENT_TERMINAL_FAILURE com HTTP 200 e sem partidas. Falha transitória produz 503 sem resultado final reservado. Não enviar corpo (objeto JSON vazio é aceito como comando vazio). Mesma chave/comando reapresenta status/corpo originais. Chave diferente após esta transição concluída ou estado incompatível retorna 409 sem novos efeitos. Operação restrita ao vendedor proprietário.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado persistido da transição; em replay pode representar estado anterior ao estado atual consultável por GET.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              },
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "true quando status/corpo vieram do resultado persistido desta chave."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/refund": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "post": {
+        "operationId": "refundPayment",
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Estornar integralmente por contrapartidas",
+        "description": "Estorna somente SETTLED por partidas compensatórias integrais baseadas nas originais; produz REFUNDED. Não apaga lançamentos nem libera documento para nova liquidação. Não enviar corpo (objeto JSON vazio é aceito como comando vazio). Mesma chave/comando reapresenta status/corpo originais. Chave diferente após esta transição concluída ou estado incompatível retorna 409 sem novos efeitos. Operação restrita ao vendedor proprietário.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado persistido da transição; em replay pode representar estado anterior ao estado atual consultável por GET.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              },
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "true quando status/corpo vieram do resultado persistido desta chave."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "get": {
+        "operationId": "getPayment",
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Consultar estado atual e segregação histórica",
+        "description": "Sempre retorna estado atual, independentemente de respostas idempotentes anteriores. Split é null até a liquidação e preservado como histórico após REFUNDED.",
+        "responses": {
+          "200": {
+            "description": "Pagamento atual do vendedor autenticado.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/ledger": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "get": {
+        "operationId": "getPaymentLedger",
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Consultar razão contábil do pagamento",
+        "description": "Partidas imutáveis; valores zero omitidos; inclui originais e compensações. Ordenação created_at,id ascendente. Cursor é opaco, vinculado ao recurso e validado; cursor ausente inicia primeira página. next_cursor=null indica fim. Pagamento sem registros retorna data vazia.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de dados do vendedor proprietário.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}/events": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentID"
+        }
+      ],
+      "get": {
+        "operationId": "getPaymentEvents",
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Consultar histórico do pagamento",
+        "description": "Eventos auditáveis com metadata sanitizada. Ordenação occurred_at,id ascendente. Cursor é opaco, vinculado ao recurso e validado; cursor ausente inicia primeira página. next_cursor=null indica fim. Pagamento sem registros retorna data vazia.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de dados do vendedor proprietário.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "tags": [
+          "Operação"
+        ],
+        "summary": "Verificar processo e banco sem expor infraestrutura",
+        "security": [],
+        "description": "Público; só status agregado, sem host, versão, credenciais ou stack trace. Processo inacessível não pode responder; database unavailable retorna HTTP 503.",
+        "responses": {
+          "200": {
+            "description": "Processo e banco disponíveis.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Processo disponível e banco indisponível.",
+            "headers": {
+              "X-Correlation-ID": {
+                "$ref": "#/components/headers/CorrelationID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerDemo": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque-demo-token",
+        "description": "Token opaco de demonstração, hash no banco. Role operator só cria vendedor; role merchant acessa seus próprios documentos/pagamentos. Emitido por CLI, nunca devolvido em POST merchants."
+      }
+    },
+    "headers": {
+      "CorrelationID": {
+        "description": "UUID gerado pelo servidor nesta requisição; pode diferir da correlação armazenada no corpo de um replay.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "parameters": {
+      "PaymentID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "UUID do pagamento; recurso de outro vendedor é indistinguível de ausente (404).",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Escopo vendedor/operação/recurso/chave. 1–128 caracteres ASCII visíveis. Mesma chave com comando diferente retorna 409. Retida por toda a vida do cenário.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[!-~]{1,128}$"
+        },
+        "example": "demo-payment-001"
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50
+        }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "Cursor opaco devolvido pela página anterior. Inválido/incompatível retorna 422.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "schemas": {
+      "MerchantCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^DEMO-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-ARCTIC"
+          },
+          "virtual_account_id": {
+            "type": "string",
+            "pattern": "^DEMO-ACCOUNT-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-ACCOUNT-ARCTIC"
+          }
+        },
+        "required": [
+          "name",
+          "virtual_account_id"
+        ]
+      },
+      "Merchant": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^DEMO-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-ARCTIC"
+          },
+          "virtual_account_id": {
+            "type": "string",
+            "pattern": "^DEMO-ACCOUNT-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-ACCOUNT-ARCTIC"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "virtual_account_id",
+          "created_at",
+          "simulation"
+        ]
+      },
+      "FiscalDocumentCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reference": {
+            "type": "string",
+            "pattern": "^DEMO-DOC-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-DOC-001"
+          },
+          "gross_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000,
+            "example": 100000
+          },
+          "cbs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 8000
+          },
+          "ibs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 12000
+          }
+        },
+        "required": [
+          "merchant_id",
+          "reference",
+          "gross_amount_cents",
+          "cbs_amount_cents",
+          "ibs_amount_cents"
+        ]
+      },
+      "FiscalDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "merchant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reference": {
+            "type": "string",
+            "pattern": "^DEMO-DOC-[A-Z0-9_-]{3,48}$",
+            "example": "DEMO-DOC-001"
+          },
+          "gross_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000,
+            "example": 100000
+          },
+          "cbs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 8000
+          },
+          "ibs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 12000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ISSUED"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "merchant_id",
+          "reference",
+          "gross_amount_cents",
+          "cbs_amount_cents",
+          "ibs_amount_cents",
+          "status",
+          "created_at",
+          "simulation"
+        ]
+      },
+      "PaymentCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fiscal_document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000,
+            "example": 100000
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "BRL"
+            ]
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined"
+            ],
+            "description": "Cenário determinístico de autorização, armazenado e imutável."
+          }
+        },
+        "required": [
+          "merchant_id",
+          "fiscal_document_id",
+          "amount_cents",
+          "currency",
+          "scenario"
+        ]
+      },
+      "Split": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "merchant_net_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 80000
+          },
+          "cbs_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 8000
+          },
+          "ibs_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "example": 12000
+          }
+        },
+        "required": [
+          "merchant_net_cents",
+          "cbs_cents",
+          "ibs_cents"
+        ],
+        "nullable": true,
+        "description": "null antes da liquidação. Após REFUNDED preserva a segregação histórica original; não é saldo devido."
+      },
+      "Payment": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "merchant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fiscal_document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "AUTHORIZED",
+              "SETTLED",
+              "FAILED",
+              "REFUNDED"
+            ]
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "BRL"
+            ]
+          },
+          "gross_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000,
+            "example": 100000
+          },
+          "split": {
+            "$ref": "#/components/schemas/Split"
+          },
+          "failure_code": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AUTHORIZATION_DECLINED",
+              "SETTLEMENT_TERMINAL_FAILURE",
+              null
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "merchant_id",
+          "fiscal_document_id",
+          "status",
+          "scenario",
+          "currency",
+          "gross_amount_cents",
+          "split",
+          "failure_code",
+          "version",
+          "simulation",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "LedgerEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "payment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_code": {
+            "type": "string",
+            "enum": [
+              "CLEARING",
+              "MERCHANT_PAYABLE",
+              "CBS_PAYABLE",
+              "IBS_PAYABLE"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "DEBIT",
+              "CREDIT"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000,
+            "example": 100000
+          },
+          "reversal_of_entry_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "event_id",
+          "account_code",
+          "direction",
+          "amount_cents",
+          "reversal_of_entry_id",
+          "created_at"
+        ]
+      },
+      "PaymentEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "payment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "AUTHORIZED",
+              "AUTHORIZATION_DECLINED",
+              "SETTLED",
+              "SETTLEMENT_FAILED",
+              "REFUNDED",
+              "TRANSIENT_ATTEMPT"
+            ]
+          },
+          "previous_status": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "CREATED",
+              "AUTHORIZED",
+              "SETTLED",
+              "FAILED",
+              "REFUNDED",
+              null
+            ]
+          },
+          "new_status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "AUTHORIZED",
+              "SETTLED",
+              "FAILED",
+              "REFUNDED"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metadata_safe": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "create_payment",
+                  "authorize_payment",
+                  "settle_payment",
+                  "refund_payment"
+                ]
+              },
+              "failure_code": {
+                "type": "string",
+                "enum": [
+                  "AUTHORIZATION_DECLINED",
+                  "SETTLEMENT_TERMINAL_FAILURE",
+                  "TRANSIENT_FAILURE"
+                ]
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "event_type",
+          "previous_status",
+          "new_status",
+          "occurred_at",
+          "correlation_id",
+          "metadata_safe"
+        ]
+      },
+      "LedgerPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1024
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor",
+          "simulation"
+        ]
+      },
+      "EventPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentEvent"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1024
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        },
+        "required": [
+          "data",
+          "next_cursor",
+          "simulation"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "STATE_CONFLICT"
+              },
+              "message": {
+                "type": "string",
+                "example": "Operação incompatível com o estado atual."
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "code",
+                    "message"
+                  ]
+                }
+              },
+              "correlation_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details",
+              "correlation_id"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          },
+          "simulation": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "simulation"
+        ]
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "JSON malformado, corpo proibido ou cabeçalho inválido.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "BAD_REQUEST",
+                "message": "JSON malformado, corpo proibido ou cabeçalho inválido.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Bearer token de demonstração ausente, inválido ou revogado.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNAUTHENTICATED",
+                "message": "Bearer token de demonstração ausente, inválido ou revogado.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Credencial válida com papel inadequado.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "FORBIDDEN",
+                "message": "Credencial válida com papel inadequado.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Recurso ausente ou de outro vendedor, indistinguíveis externamente.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "RESOURCE_NOT_FOUND",
+                "message": "Recurso ausente ou de outro vendedor, indistinguíveis externamente.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflito de estado, chave com comando diferente, referência/conta duplicada ou documento já liquidado.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "STATE_CONFLICT",
+                "message": "Conflito de estado, chave com comando diferente, referência/conta duplicada ou documento já liquidado.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "Corpo JSON excede 16384 bytes.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "PAYLOAD_TOO_LARGE",
+                "message": "Corpo JSON excede 16384 bytes.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "Requisição com corpo deve usar application/json.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNSUPPORTED_MEDIA_TYPE",
+                "message": "Requisição com corpo deve usar application/json.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Campo desconhecido, tipo/valor inválido, soma fiscal acima do bruto ou cursor inválido.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Campo desconhecido, tipo/valor inválido, soma fiscal acima do bruto ou cursor inválido.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Limite de requisições atingido.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Segundos recomendados antes de repetir."
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "RATE_LIMITED",
+                "message": "Limite de requisições atingido.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Falha transitória; nenhum efeito financeiro parcial e nenhuma resposta idempotente final reservada. Permite repetição com a mesma chave.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Segundos recomendados antes de repetir."
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "TEMPORARY_UNAVAILABLE",
+                "message": "Falha transitória; nenhum efeito financeiro parcial e nenhuma resposta idempotente final reservada. Permite repetição com a mesma chave.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Erro inesperado sanitizado, sem detalhes de infraestrutura.",
+        "headers": {
+          "X-Correlation-ID": {
+            "$ref": "#/components/headers/CorrelationID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Erro inesperado sanitizado, sem detalhes de infraestrutura.",
+                "details": [],
+                "correlation_id": "00000000-0000-4000-8000-000000000001"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

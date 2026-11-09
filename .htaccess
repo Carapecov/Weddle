@@ -1,0 +1,2 @@
+# This repository contains private local configuration. Serve only src/api/public via an explicit virtual host.
+Require all denied

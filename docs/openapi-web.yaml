@@ -1,0 +1,1566 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Weddell Pay — demonstração web local",
+    "version": "1.0.0",
+    "description": "Complemento do contrato API v1. Sessão criptografada same-origin, sem Bearer no navegador, sem movimentação real ou autenticação de produção. CSRF obrigatório em todas as mutações; corpo16KiB e60requisições/minuto/credencial. Erros sanitizados; cookieHttpOnlyStrict; CSPself semJSinline; nenhuma publicação autorizada."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8000"
+    }
+  ],
+  "security": [
+    {
+      "DemoSession": []
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "webLanding",
+        "security": [],
+        "summary": "Landing com meta csrf-token e cookie anônimo.",
+        "responses": {
+          "200": {
+            "description": "Landing com meta csrf-token e cookie anônimo.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "operationId": "webDocs",
+        "security": [],
+        "summary": "Documentação HTML local.",
+        "responses": {
+          "200": {
+            "description": "Documentação HTML local.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/app": {
+      "get": {
+        "operationId": "webApp",
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "summary": "Dashboard; sem sessão de navegador retorna 302 para /.",
+        "responses": {
+          "200": {
+            "description": "Dashboard; sem sessão de navegador retorna 302 para /.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Sessão ausente; redirecionar para landing.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "example": "/"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/session": {
+      "post": {
+        "operationId": "webStartSession",
+        "summary": "Abrir ou reutilizar demonstração isolada",
+        "description": "Local/testing e IP loopback. Cookie anônimo+CSRF do GET /. Credencial interna nunca é devolvida. Nova sessão cria seis pagamentos reais e gira ID/CSRF; reutilização não duplica exemplos. Até dez novos provisionamentos/minuto/IP.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "redirect=/app. Cookie HttpOnly/SameSiteStrict; sessão arquivo criptografada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Redirect"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/logout": {
+      "post": {
+        "operationId": "webLogout",
+        "summary": "Revogar credencial atual e invalidar sessão",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "redirect=/. Revoga somente id vinculado, gira sessão e CSRF.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Redirect"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/overview": {
+      "get": {
+        "operationId": "webOverview",
+        "summary": "Consultar totais/dias/recentes reais do próprio vendedor",
+        "description": "SETTLED atual compõe totais financeiros segregados; REFUNDED é excluído desses totais. Volume total inclui todos os estados/tentativas. Daily tem sete dias America/Sao_Paulo com datas reais; timestamps persistidos UTC.",
+        "responses": {
+          "200": {
+            "description": "Dados persistidos e agregados exatos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/payments": {
+      "get": {
+        "operationId": "webListPayments",
+        "summary": "Filtrar e paginar pagamentos do próprio vendedor",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ALL",
+                "CREATED",
+                "AUTHORIZED",
+                "SETTLED",
+                "FAILED",
+                "REFUNDED"
+              ],
+              "default": "ALL"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "description": "Busca literal em UUID/referência fiscal; sem caracteres de controle."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordenação created_at,id decrescente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPage"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      },
+      "post": {
+        "operationId": "webCreatePayment",
+        "summary": "Criar documento+pagamento atomicamente pelo formulário",
+        "description": "Não aceitar merchant_id ou documento do navegador. Validar Idempotency-Key antes de hash. Núcleo usa create_payment/resource=create/chave web-create:SHA256(header). Mesmo comando/chave devolve 201/corpo originais; divergente409. Soma CBS+IBS <= bruto. Scenario imutável e somente didático.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "./openapi.yaml#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPaymentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "CREATED persistido, documento e resultado idempotente no mesmo commit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./openapi.yaml#/components/schemas/Payment"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "/web/payments/{id}"
+              },
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/payments/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentId"
+        }
+      ],
+      "get": {
+        "operationId": "webPaymentDetail",
+        "summary": "Consultar pagamento atual/documento/partidas/eventos",
+        "description": "Ownership antes de dados ou replay. Arrays ledger/events diretos e limitados. UUID de outro vendedor retorna404 indistinguível de ausente.",
+        "responses": {
+          "200": {
+            "description": "Payment atual e evidências persistidas do próprio vendedor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Detail"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/payments/{id}/authorize": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentId"
+        }
+      ],
+      "post": {
+        "operationId": "webAuthorize",
+        "summary": "Executar authorize no núcleo transacional",
+        "description": "Somente {} ou corpo ausente. Mesma chave/comando reapresenta resposta original; chave nova após operação concluída retorna409 sem efeitos. Depois consultar detalhe/overview para estado atual. Nenhuma injeção de falhas via HTTP.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "./openapi.yaml#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado original da operação, sujeito a replay histórico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./openapi.yaml#/components/schemas/Payment"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/payments/{id}/settle": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentId"
+        }
+      ],
+      "post": {
+        "operationId": "webSettle",
+        "summary": "Executar settle no núcleo transacional",
+        "description": "Somente {} ou corpo ausente. Mesma chave/comando reapresenta resposta original; chave nova após operação concluída retorna409 sem efeitos. Depois consultar detalhe/overview para estado atual. Nenhuma injeção de falhas via HTTP.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "./openapi.yaml#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado original da operação, sujeito a replay histórico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./openapi.yaml#/components/schemas/Payment"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/payments/{id}/refund": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PaymentId"
+        }
+      ],
+      "post": {
+        "operationId": "webRefund",
+        "summary": "Executar refund no núcleo transacional",
+        "description": "Somente {} ou corpo ausente. Mesma chave/comando reapresenta resposta original; chave nova após operação concluída retorna409 sem efeitos. Depois consultar detalhe/overview para estado atual. Nenhuma injeção de falhas via HTTP.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          },
+          {
+            "$ref": "./openapi.yaml#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado original da operação, sujeito a replay histórico.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./openapi.yaml#/components/schemas/Payment"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/web/examples": {
+      "post": {
+        "operationId": "webExamples",
+        "summary": "Preparar somente os seis exemplos próprios sem duplicidade",
+        "description": "Guarda transacional PostgreSQL por vendedor e chaves estáveis separadas do formulário. Não reseta alterações posteriores. Sem Idempotency-Key pública obrigatória.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "created_count=0 quando exemplos já existirem.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Examples"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "419": {
+            "$ref": "#/components/responses/Error419"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/docs/openapi": {
+      "get": {
+        "operationId": "download-openapi",
+        "security": [],
+        "summary": "Baixar contrato API v1",
+        "responses": {
+          "200": {
+            "description": "Arquivo fixo autorizado; attachment e nosniff, sem caminho fornecido pelo usuário.",
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs/openapi-web": {
+      "get": {
+        "operationId": "download-openapi-web",
+        "security": [],
+        "summary": "Baixar contrato demonstração web",
+        "responses": {
+          "200": {
+            "description": "Arquivo fixo autorizado; attachment e nosniff, sem caminho fornecido pelo usuário.",
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "DemoSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "weddell-pay-session",
+        "description": "Cookie HttpOnly gerenciado pelo navegador; nome configurável por SESSION_COOKIE/APP_NAME. Sessão contém apenas IDs e é revalidada a cada requisição. Não enviar manualmente Bearer."
+      }
+    },
+    "parameters": {
+      "CsrfToken": {
+        "name": "X-CSRF-TOKEN",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Valor da meta csrf-token da página atual. Sessão e token giram ao abrir/encerrar; após419 atualizar página."
+      },
+      "PaymentId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "schemas": {
+      "ExactAggregate": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        ],
+        "description": "Agregado exato: inteiro até JS MAX_SAFE_INTEGER; acima, dígitos decimais string sem conversão float."
+      },
+      "WebPaymentCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "gross_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 1000000000000
+          },
+          "cbs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "ibs_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined"
+            ]
+          }
+        },
+        "required": [
+          "gross_amount_cents",
+          "cbs_amount_cents",
+          "ibs_amount_cents",
+          "scenario"
+        ]
+      },
+      "Overview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "summary": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "total_amount_cents": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "settled_amount_cents": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "total_payments": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "authorized_count": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "failed_count": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "refunded_count": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "settled_count": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "cbs_amount_cents": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "ibs_amount_cents": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "merchant_net_cents": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              }
+            },
+            "required": [
+              "total_amount_cents",
+              "settled_amount_cents",
+              "total_payments",
+              "authorized_count",
+              "failed_count",
+              "refunded_count",
+              "settled_count",
+              "cbs_amount_cents",
+              "ibs_amount_cents",
+              "merchant_net_cents"
+            ]
+          },
+          "daily": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Dia America/Sao_Paulo, incluindo zeros reais nos seis dias anteriores sem registros."
+                },
+                "amount_cents": {
+                  "$ref": "#/components/schemas/ExactAggregate"
+                },
+                "count": {
+                  "$ref": "#/components/schemas/ExactAggregate"
+                }
+              },
+              "required": [
+                "date",
+                "amount_cents",
+                "count"
+              ]
+            }
+          },
+          "recent": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "$ref": "./openapi.yaml#/components/schemas/Payment"
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "daily",
+          "recent"
+        ]
+      },
+      "PaymentPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "./openapi.yaml#/components/schemas/Payment"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "current_page": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "last_page": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "total": {
+                "$ref": "#/components/schemas/ExactAggregate"
+              },
+              "per_page": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            },
+            "required": [
+              "current_page",
+              "last_page",
+              "total",
+              "per_page"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "Detail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "payment": {
+            "$ref": "./openapi.yaml#/components/schemas/Payment"
+          },
+          "document": {
+            "$ref": "./openapi.yaml#/components/schemas/FiscalDocument"
+          },
+          "ledger": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "./openapi.yaml#/components/schemas/LedgerEntry"
+            }
+          },
+          "events": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "./openapi.yaml#/components/schemas/PaymentEvent"
+            }
+          }
+        },
+        "required": [
+          "payment",
+          "document",
+          "ledger",
+          "events"
+        ]
+      },
+      "Redirect": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "redirect": {
+            "type": "string",
+            "enum": [
+              "/",
+              "/app"
+            ]
+          }
+        },
+        "required": [
+          "redirect"
+        ]
+      },
+      "Examples": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "seeded": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "created_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          }
+        },
+        "required": [
+          "seeded",
+          "created_count"
+        ]
+      },
+      "Empty": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "Comando/JSON/cabeçalho inválido.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error401": {
+        "description": "Sessão ausente, expirada ou revogada.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error403": {
+        "description": "Origem ou ambiente não permitido.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error404": {
+        "description": "Recurso ausente ou de outro vendedor.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error409": {
+        "description": "Conflito de estado ou idempotência.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error413": {
+        "description": "Corpo maior que 16 KiB.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error415": {
+        "description": "Use application/json.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error419": {
+        "description": "CSRF_MISMATCH: atualizar a página e o token.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error422": {
+        "description": "Campos/tipos/valores/filtros inválidos.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error429": {
+        "description": "Limite atingido; Retry-After.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error500": {
+        "description": "Erro inesperado sanitizado.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      },
+      "Error503": {
+        "description": "Falha transitória sem efeito parcial; repetir mesma chave.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./openapi.yaml#/components/schemas/Error"
+            }
+          }
+        },
+        "headers": {
+          "X-Correlation-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "private, no-store"
+          }
+        }
+      }
+    }
+  }
+}
